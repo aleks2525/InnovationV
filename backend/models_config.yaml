@@ -1,0 +1,76 @@
+# =====================================================================
+# Конфигурация стадий под каталог провайдера (имена моделей — строки из его API).
+# Разрешено ТЗ 3.1 ∩ доступно у провайдера:
+#   Qwen/Qwen3.6-35B-A3B · openai/gpt-4.1 · GigaChat/GigaChat-2-Max
+#   HF: BAAI/bge-m3 · BAAI/bge-reranker-v2-m3 (эмбеддинги/реранкер)
+# Все провайдеры ходят в ОДИН OpenAI-совместимый эндпоинт; разделение
+# provider: qwen|openai|gigachat нужно только для читаемого лога llm_calls
+# и гарда ALLOWED_MODELS — ключи/URL в .env одинаковые для трёх бакетов.
+# =====================================================================
+
+stages:
+  # 1. Расширение запроса в 5–6 подзапросов (RU/EN)
+  query_expansion:
+    enabled: true
+    provider: qwen
+    model: Qwen/Qwen3.6-35B-A3B
+    temperature: 0.4
+    base_url: ""
+    api_key: ""
+
+  # 2. Массовое извлечение кандидатов из текстов источников
+  candidate_extract:
+    enabled: true
+    provider: qwen
+    model: Qwen/Qwen3.6-35B-A3B
+    temperature: 0.1
+    base_url: ""
+    api_key: ""
+
+  # 3. Глубокий анализ: вердикт, уверенность, предикторы, name_ru, область
+  deep_analysis:
+    enabled: true
+    provider: openai
+    model: openai/gpt-4.1
+    temperature: 0.2
+    base_url: ""
+    api_key: ""
+
+  # 4. Второй аудитор: семья GigaChat ≠ семья OpenAI → независимые ошибки
+  judge_analysis:
+    enabled: true
+    provider: gigachat
+    model: GigaChat/GigaChat-2-Max
+    temperature: 0.1
+    base_url: ""
+    api_key: ""
+
+  # 5. Связный русский текст инсайт-отчётов
+  report_generation:
+    enabled: true
+    provider: gigachat
+    model: GigaChat/GigaChat-2-Max
+    temperature: 0.5
+    base_url: ""
+    api_key: ""
+
+  # Если в полном каталоге появятся модели, предпочтительные по ТЗ — раскомментируйте:
+  # deep_analysis:  {enabled: true, provider: qwen,     model: Qwen/Qwen3-235B,   temperature: 0.2}
+  # judge_analysis: {enabled: true, provider: openai,   model: openai/gpt-5.6-luna, temperature: 0.1}
+  # query_expansion:{enabled: true, provider: yandex,   model: yandexgpt-lite,    temperature: 0.4}
+
+components:
+  reranker:
+    enabled: true
+    type: api
+    format: tei                        # если провайдер ответит 404/405 — попробуйте cohere
+    model: BAAI/bge-reranker-v2-m3     # альтернатива: Qwen/Qwen3-Reranker-0.6B
+    base_url: ""
+    api_key: ""
+    top_k: 8
+  classifier:
+    enabled: true
+  patents:
+    enabled: true
+  pgvector:
+    enabled: false

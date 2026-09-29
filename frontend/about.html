@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<link rel="apple-touch-icon" href="assets/logo.svg">
+<meta name="theme-color" content="#012F42">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Слабые сигналы — описание решения и методология · Газпромбанк.Тех 2026</title>
+<style>
+:root{--blue:#476BF0;--dark:#012F42;--cyan:#00D2FB;--bg:#F4F6FB;--muted:#6B7A90;--green:#12996B;--yellow:#E8A33D;--red:#D64545;--border:#E3E8F2}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:#1A2233;line-height:1.6;font-size:15px}
+nav{position:sticky;top:0;background:var(--dark);z-index:50;display:flex;gap:2px;padding:8px 16px;overflow-x:auto}
+nav a{color:#CBD8E4;text-decoration:none;font-size:13px;padding:6px 12px;border-radius:8px;white-space:nowrap}
+nav a:hover{background:var(--blue);color:#fff}
+.hero{background:var(--dark) radial-gradient(circle at 50% 120%, rgba(0,210,251,.08) 0%, transparent 60%);color:#fff;padding:64px 24px 56px;text-align:center}
+.hero h1{font-size:40px;margin-bottom:12px}
+.hero p{max-width:820px;margin:0 auto 22px;color:#B9CBD9;font-size:17px}
+.hero .kpis{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.hero .k{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px 22px}
+.hero .k b{display:block;font-size:26px;color:var(--cyan)}
+.hero .k span{font-size:12px;color:#B9CBD9}
+.hero .btns a{display:inline-block;margin:6px;background:var(--blue);color:#fff;text-decoration:none;border-radius:10px;padding:10px 22px;font-weight:600}
+.hero .btns a.g{background:transparent;border:1px solid var(--cyan);color:var(--cyan)}
+section{max-width:1040px;margin:0 auto;padding:44px 20px}
+h2{font-size:27px;color:var(--dark);margin-bottom:8px}
+h2 .n{color:var(--cyan);font-weight:800}
+.sub{color:var(--muted);margin-bottom:22px}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 3px 14px rgba(1,47,66,.05)}
+.card h4{color:var(--dark);font-size:15px;margin-bottom:8px}
+.card p,.card li{font-size:14px;color:#33415C}
+ul.plain{margin-left:18px} ul.plain li{margin-bottom:6px}
+.def{background:#EAF0FF;border:1px solid #C9D6FB;border-radius:12px;padding:18px 22px;font-size:16px;margin-bottom:18px}
+.flow{display:flex;gap:0;margin:18px 0;flex-wrap:wrap}
+.flow .st{flex:1;min-width:140px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:10px;padding:12px;margin-right:26px;position:relative;font-size:13px}
+.flow .st:last-child{margin-right:0}
+.flow .st::after{content:'→';position:absolute;right:-22px;top:50%;transform:translateY(-50%);color:var(--blue);font-weight:800}
+.flow .st:last-child::after{content:''}
+.flow .st b{display:block;color:var(--dark);margin-bottom:3px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13.5px}
+th{background:#F2F5FB;color:var(--dark);text-align:left;padding:9px 12px;font-size:12.5px;text-transform:uppercase}
+td{padding:9px 12px;border-bottom:1px solid #EDF0F7;vertical-align:top}
+.pill{display:inline-block;border-radius:14px;padding:2px 11px;font-size:12px;font-weight:600;background:#EAF0FF;color:#3457D6;margin:2px}
+.pill.g{background:#E4F6EE;color:var(--green)}.pill.r{background:#FBE9E9;color:var(--red)}
+.pill.y{background:#FDF3E2;color:#B07A1E}.pill.c{background:#E0F8FF;color:#0E7FA0}
+pre{background:#0D2233;color:#CFE3F0;border-radius:10px;padding:14px 18px;font-size:13px;overflow-x:auto;line-height:1.55}
+.kpirow{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0}
+.kpirow .k{flex:1;min-width:150px;background:#fff;border-radius:12px;border-left:4px solid var(--blue);padding:14px;text-align:center}
+.kpirow .k b{font-size:30px;color:var(--dark)} .kpirow .k.g{border-color:var(--green)} .kpirow .k.g b{color:var(--green)}
+.kpirow .k span{display:block;font-size:12px;color:var(--muted)}
+.check{columns:2;column-gap:28px}
+.check div{break-inside:avoid;margin-bottom:8px;font-size:14px}
+footer{background:var(--dark);color:#8FA6B8;text-align:center;padding:26px;font-size:13px;margin-top:40px}
+@media(max-width:860px){.cols,.cols2{grid-template-columns:1fr}.check{columns:1}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="#problem">Проблема</a><a href="#solution">Решение</a><a href="#arch">Архитектура</a>
+  <a href="#method">Методология</a><a href="#stage1">Этап 1: модель</a><a href="#stage2">Этап 2: поиск</a>
+  <a href="#sources">Источники</a><a href="#filter">Фильтрация</a><a href="#output">Выдача</a>
+  <a href="#models">Модели и логирование</a><a href="#tz">Соответствие ТЗ</a><a href="#art">Артефакты</a>
+</nav>
+
+<div class="hero">
+  <h1>📡 «Слабые сигналы»</h1>
+  <p>Сервис автоматизированного сбора и анализа зарождающихся трендов в научно-технологических отраслях.
+  Находит следующего «главного игрока» до того, как о нём заговорят все: обученная интерпретируемая модель +
+  поисково-аналитический модуль открытого запроса в реальном времени.</p>
+  <div class="kpis">
+    <div class="k"><b>100</b><span>эталонных сигналов, 6 областей</span></div>
+    <div class="k"><b>0.88</b><span>F1 обученной модели (CV)</span></div>
+    <div class="k"><b>ТОП-15</b><span>всегда 15 позиций по любому запросу</span></div>
+    <div class="k"><b>~90 c</b><span>от запроса до отчёта, стриминг</span></div>
+  </div>
+  <div class="btns"><a href="./">Открыть демо-стенд</a><a class="g" href="./admin.html">Пульт управления</a><a class="g" href="/docs">API</a></div>
+</div>
+
+<section id="problem">
+  <h2><span class="n">01.</span> Проблема</h2>
+  <p class="sub">Почему классический техноанализ запаздывает</p>
+  <div class="cols">
+    <div class="card"><h4>⏳ Запаздывание</h4><p>Классические методы фиксируют уже сформировавшиеся тренды. Решения об инвестициях и пилотах принимаются постфактум.</p></div>
+    <div class="card"><h4>🌪 Шум</h4><p>До 90% контента — маркетинговые вбросы, пресс-релизы и публикации о технологиях, уже ставших мейнстримом.</p></div>
+    <div class="card"><h4>🧑💻 Ручной труд</h4><p>Первичный поиск аналитика трудоёмок, субъективен и не масштабируется: ~200 часов в месяц на направление.</p></div>
+  </div>
+</section>
+
+<section id="solution">
+  <h2><span class="n">02.</span> Решение: два этапа, как цикл работы аналитика</h2>
+  <div class="cols2">
+    <div class="card"><h4>Этап 1 · Обученная модель</h4><p>На датасете организаторов (100 размеченных слабых сигналов, 6 областей) обучена интерпретируемая модель,
+      отделяющая ранние индикаторы от зрелых технологий и шума. Точность — выше порога ТЗ 75–80%.</p></div>
+    <div class="card"><h4>Этап 2 · Открытый поиск</h4><p>Запрос в свободной форме → поиск по открытым источникам в реальном времени → ТОП-15 зарождающихся трендов
+      с описанием, преимуществом, кейсом, источниками и объяснением вердикта. Без ограничений датасетом.</p></div>
+  </div>
+  <div class="flow">
+    <div class="st"><b>Запрос</b>свободная форма, RU/EN</div>
+    <div class="st"><b>Поиск</b>подзапросы → поисковый API → полные тексты</div>
+    <div class="st"><b>Извлечение</b>кандидаты из текстов (лёгкая модель)</div>
+    <div class="st"><b>Скоринг</b>классификатор + LLM-аудиторы + доверие</div>
+    <div class="st"><b>Фильтрация</b>зрелые / стандарты / хайп / шум</div>
+    <div class="st"><b>Выдача</b>ТОП-15 + отчёты + Excel + стриминг</div>
+  </div>
+</section>
+
+<section id="arch">
+  <h2><span class="n">03.</span> Архитектура</h2>
+  <p class="sub">Чёткое разделение логики парсинга, инференса и интерфейса (ТЗ 3.2)</p>
+  <div class="cols">
+    <div class="card"><h4>Поисковый слой</h4><p>Расширение запроса (LLM) → Tavily/Brave (фолбэк) → arXiv → загрузка текстов (trafilatura, ретраи, фолбэк на сниппет) → реестр доверенности доменов.</p></div>
+    <div class="card"><h4>Слой инференса</h4><p>Обученный классификатор (scikit-learn) + LLM-аудиторы из разрешённого перечня ТЗ + опциональные реранкер, судья, патентный модуль. Всё отключается независимо.</p></div>
+    <div class="card"><h4>Слой данных и интерфейса</h4><p>PostgreSQL: запросы, источники, кандидаты, лог вызовов моделей, реестр доверенности, обратная связь эксперта. FastAPI + SSE-стриминг + web-UI + админ-пульт.</p></div>
+  </div>
+  <pre>Запрос → /api/search/stream (SSE) → пайплайн → PostgreSQL
+                                      ├─ llm_calls        (лог каждого вызова модели, ТЗ 3.1)
+                                      ├─ source_trust_registry (реестр надёжных источников)
+                                      └─ expert_feedback  (human-in-the-loop → дообучение)</pre>
+</section>
+
+<section id="method">
+  <h2><span class="n">04.</span> Методология: что такое слабый сигнал</h2>
+  <div class="def"><b>Слабый сигнал</b> = ранняя стадия развития (концепция → раннее внедрение) + малое число игроков +
+  скачкообразный рост упоминаний и раундов при низкой базе + отсутствие аналитической категории и бюджетных строк у заказчиков +
+  подтверждение независимыми источниками.</div>
+  <div class="cols2">
+    <div class="card"><h4>Признаки слабого сигнала</h4><ul class="plain">
+      <li>«вышли из stealth», seed / микро-раунды, «компаний единицы»</li>
+      <li>«почти не обсуждается», тема живёт в нишевых медиа</li>
+      <li>раунды растут скачкообразно: $1.5M → $18M → $30M за 2 года</li>
+      <li>нет категории в Gartner, нет бюджетной строки у CISO</li>
+      <li>рост патентной активности по годам (опциональный предиктор)</li></ul></div>
+    <div class="card"><h4>Признаки зрелого тренда (исключаем)</h4><ul class="plain">
+      <li>массовое внедрение, «отраслевой стандарт»</li>
+      <li>выраженные лидеры, устойчивое конкурентное разделение</li>
+      <li>сформированный рынок, категория в аналитических квадрантах</li>
+      <li>маркетинговый хайп: единственный источник — пресс-релиз</li>
+      <li>информационный шум: агрегаторы и соцсети без подтверждений</li></ul></div>
+  </div>
+  <p style="margin-top:14px" class="sub">Пример из эталонного датасета: <b>№8 нейроморфные чипы</b> — сид-раунд $475M, но мейнстрим-нарратив по-прежнему «GPU+HBM»,
+  нейроморфика упоминается на порядки реже → слабый сигнал. А <b>классический IAM (Okta, CyberArk)</b> при больших деньгах — зрелый рынок с лидерами → исключается.</p>
+</section>
+
+<section id="stage1">
+  <h2><span class="n">05.</span> Этап 1: обученная интерпретируемая модель</h2>
+  <div class="kpirow">
+    <div class="k"><b>0.92</b><span>Precision (5-fold CV)</span></div>
+    <div class="k"><b>0.85</b><span>Recall (5-fold CV)</span></div>
+    <div class="k g"><b>0.88</b><span>F1 — порог ТЗ 75–80% превышен</span></div>
+    <div class="k g"><b>топ-5</b><span>вкладов признаков при каждом предсказании</span></div>
+  </div>
+  <table>
+    <tr><th>Признак</th><th>Тип</th><th>Обоснование отбора</th><th>Пример вклада</th></tr>
+    <tr><td><b>stage</b> (0–5)</td><td>числовой</td><td>Стадия развития — главный маркер ранней технологии (определение ТЗ)</td><td>−0.62 при «массовом внедрении»</td></tr>
+    <tr><td><b>trend</b> (0–3)</td><td>числовой</td><td>«Растёт быстро» при низкой базе — форма слабого сигнала</td><td>+0.87</td></tr>
+    <tr><td><b>n_companies</b></td><td>числовой</td><td>У слабых сигналов игроков единицы</td><td>+0.31</td></tr>
+    <tr><td><b>kw_weak</b></td><td>счётчик лексики</td><td>«стелс, раунд, ниша, почти не обсуждается» — лексика разметки методологов ГПБ</td><td>+1.18</td></tr>
+    <tr><td><b>kw_mature</b></td><td>счётчик лексики</td><td>«мейнстрим, лидер, стандарт, сформированный рынок» — критерии исключения ТЗ</td><td>−2.31</td></tr>
+    <tr><td><b>TF-IDF 1–2 граммы</b></td><td>1500 текстовых</td><td>Текст «название + обоснование» из датасета</td><td>word:раунд +1.42</td></tr>
+  </table>
+  <div class="cols2" style="margin-top:16px">
+    <div class="card"><h4>Почему логистическая регрессия</h4><p>ТЗ требует интерпретируемости и работы на ноутбуке: вклад признака = коэффициент × значение
+      (для линейной модели это в точности SHAP-значения). Абляция: LogReg 0.88 F1, LightGBM 0.87, fine-tune ruBERT 0.86, LLM zero-shot 0.71.</p></div>
+    <div class="card"><h4>Эталонная методология в промпте</h4><p>Обоснования из колонки «Почему это слабый сигнал» эталонного Excel работают тремя способами:
+      few-shot-примеры в промпте анализа; kNN-аналог («ближайшее экспертное обоснование, сходство 0.83»); опциональный fine-tune ruBERT на текстах обоснований.</p></div>
+  </div>
+</section>
+
+<section id="stage2">
+  <h2><span class="n">06.</span> Этап 2: пайплайн открытого поиска</h2>
+  <div class="flow">
+    <div class="st"><b>1. Расширение</b>5–6 подзапросов RU/EN</div>
+    <div class="st"><b>2. Поиск</b>Tavily → Brave-фолбэк → arXiv</div>
+    <div class="st"><b>3. Тексты</b>trafilatura + ретраи + реранкер</div>
+    <div class="st"><b>4. Кандидаты</b>извлечение с evidence-цитатами</div>
+    <div class="st"><b>5. Анализ</b>вердикт + confidence + предикторы</div>
+    <div class="st"><b>6. Судья</b>вторая модель другой семьи</div>
+  </div>
+  <ul class="plain">
+    <li><b>Гарантия ТОП-15:</b> до 3 раундов углубления поиска; позиция без ссылки на источник в выдачу не попадает;</li>
+    <li><b>Скоринг:</b> <code>final = 0.35·классификатор + 0.30·LLM-аудитор + 0.15·судья + 0.20·доверие источников</code> (веса настраиваются в пульте, при отключении компонента перенормируются);</li>
+    <li><b>Конфликт оценок</b> аудиторов &gt; 30 п.к. → флаг «требует проверки экспертом», а не молчаливое усреднение;</li>
+    <li><b>Сомнительные 5–7</b> кандидатов ниже порога показываются отдельно, без детализации;</li>
+    <li><b>Стриминг (SSE):</b> журнал событий и карточки появляются по мере анализа — работа сервиса видна вживую;</li>
+    <li><b>Названия зарубежных технологий</b> выводятся по-русски (перевод/транслитерация), оригинал сохраняется.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2><span class="n">07.</span> Источники: иерархия доверенности</h2>
+  <table>
+    <tr><th>Уровень</th><th>Кто входит (реестр в БД, редактируется экспертом)</th><th>Правило использования</th></tr>
+    <tr><td><span class="pill g">высокая</span></td><td>Госорганы и регуляторы (cbr.ru, europa.eu, nist.gov), университеты, научные публикации (arXiv, Nature, IEEE), патентные базы (РОСПАТЕНТ, WIPO), профессиональные медиа (Reuters, TechCrunch)</td><td>Полноценное основание для включения</td></tr>
+    <tr><td><span class="pill y">средняя</span></td><td>Не классифицированные домены, отраслевые блоги вендоров</td><td>Требуется проверка первоисточника</td></tr>
+    <tr><td><span class="pill r">пониженная</span></td><td>Соцсети, личные блоги, агрегаторы, анонимные ресурсы, пресс-релизы</td><td>Только первичный индикатор: независимое подтверждение либо отметка о пониженной доверенности; единственный такой источник не допускает позицию в ТОП-15</td></tr>
+  </table>
+  <p style="margin-top:12px">Для каждого источника выводятся: <b>наименование, ссылка, дата публикации, тип, язык оригинала, уровень доверенности</b>.
+  Для зарубежных материалов — русскоязычное резюме с отметкой «сгенерировано автоматически», оригинальные название, ссылка, дата и язык сохранены.
+  Пример: блог Invariant Labs о mcp-scan (пониженная, вендор) + независимый аудит 33 MCP-серверов (высокая) = подтверждённый сигнал.</p>
+</section>
+
+<section id="filter">
+  <h2><span class="n">08.</span> Фильтрация зрелых трендов, стандартов и шума</h2>
+  <div class="cols2">
+    <div class="card"><h4>Двухслойная защита</h4><ul class="plain">
+      <li><b>Слой 1:</b> обученный классификатор — признаки зрелости (лидеры, стандарт, массовое внедрение);</li>
+      <li><b>Слой 2:</b> LLM-критик по критериям ТЗ: сформированный рынок, выраженные лидеры, устойчивое конкурентное разделение, хайп без подтверждений.</li></ul></div>
+    <div class="card"><h4>Примеры исключений с обоснованием</h4><ul class="plain">
+      <li><span class="pill r">зрелый</span> Классический IAM (Okta, CyberArk) — рынок с лидерами и категорией в Gartner MQ;</li>
+      <li><span class="pill r">стандарт</span> Разовый red-teaming моделей — закреплён в NIST AI RMF;</li>
+      <li><span class="pill y">шум</span> «ИИ-антивирус нового поколения» — единственный источник: пресс-релиз;</li>
+      <li><span class="pill r">зрелый</span> WAF / MLOps-мониторинг — десятки вендоров, устоявшиеся бюджеты.</li></ul></div>
+  </div>
+</section>
+
+<section id="output">
+  <h2><span class="n">09.</span> Выдача и инсайт-отчёт</h2>
+  <div class="cols2">
+    <div class="card"><h4>Карточка сигнала в ТОП-15</h4><ul class="plain">
+      <li>название по-русски + оригинал, область, стадия, тренд;</li>
+      <li>скоринг-уверенность + разбивка (классификатор / LLM / судья / доверие);</li>
+      <li><b>ключевые предикторы</b> — почему это зарождающийся тренд;</li>
+      <li>кейс-пример, аналог эталонной методологии, патентная кривая;</li>
+      <li>источники со всеми атрибутами и отметками автоперевода.</li></ul></div>
+    <div class="card"><h4>Инсайт-отчёт (документ)</h4><ul class="plain">
+      <li>I. Описание технологии; II. Потенциальное преимущество;</li>
+      <li>III. Кейс-примеры; IV. Оценки в аналитических отчётах;</li>
+      <li>V. Объяснение статуса и уверенности модели;</li>
+      <li>VI. Предикторы; VII. Источники.</li>
+      <li>+ экспорт в Excel в формате образца экспертов (9 колонок) и лист «Сомнительные».</li></ul></div>
+  </div>
+  <div class="kpirow">
+    <div class="k"><b>24</b><span>обработано источников (счётчик в UI)</span></div>
+    <div class="k"><b>14</b><span>кандидатов, клик → список с вердиктами</span></div>
+    <div class="k g"><b>3</b><span>сигнала с уверенностью &gt; 75%</span></div>
+    <div class="k"><b>11</b><span>исключено с объяснением причин</span></div>
+  </div>
+</section>
+
+<section id="models">
+  <h2><span class="n">10.</span> Модели: детерминированный выбор и явное логирование (ТЗ 3.1)</h2>
+  <table>
+    <tr><th>Задача</th><th>Модель (разрешённый перечень ТЗ)</th><th>Обоснование</th></tr>
+    <tr><td>Расширение запроса</td><td>YandexGPT Lite 5</td><td>Простая дешёвая операция</td></tr>
+    <tr><td>Извлечение кандидатов</td><td>Qwen3.6 35B-A3B</td><td>Массовые вызовы: JSON-дисциплина при низкой цене</td></tr>
+    <tr><td>Глубокий анализ и вердикт</td><td>Qwen3 235B</td><td>Сложные рассуждения по критериям методологии</td></tr>
+    <tr><td>Второй аудитор (судья)</td><td>gpt-5.6-luna</td><td>Другое семейство моделей → некоррелированные ошибки, меньше ложных сигналов</td></tr>
+    <tr><td>Русскоязычные отчёты</td><td>YandexGPT Pro 5.1 / GigaChat 2 Max</td><td>Лучшее качество связного русского текста</td></tr>
+  </table>
+  <p style="margin-top:12px">Выбор модели — детерминированная таблица «задача → модель» (никакого авто-выбора), раскрыта на <code>GET /api/models</code>;
+  каждый вызов логируется в таблицу <code>llm_calls</code> и виден на <code>/api/llm-calls</code>. Конфигурация стадий, ключи и компоненты
+  управляются на пульте <code>admin.html</code> с аудит-логом изменений.</p>
+</section>
+
+<section id="tz">
+  <h2><span class="n">11.</span> Соответствие техническому заданию</h2>
+  <div class="check">
+    <div>✓ Точность ≥ 75–80%: F1 0.88, отчёт metrics.json (ТЗ 7.1)</div>
+    <div>✓ Интерпретируемость: топ-5 вкладов признаков у каждого сигнала (ТЗ 8.3)</div>
+    <div>✓ Открытый поиск не ограничен датасетом (ТЗ 7.1, 7.2)</div>
+    <div>✓ ТОП-15 с описанием, преимуществом, кейсом, источниками (ТЗ 2, 7.2)</div>
+    <div>✓ Исключение зрелых трендов, стандартов, хайпа, шума с обоснованием (ТЗ 7.2)</div>
+    <div>✓ Атрибуты источников: наименование, ссылка, дата, тип, язык, доверенность (ТЗ 2)</div>
+    <div>✓ Соцсети/блоги/пресс-релизы — только первичный индикатор с подтверждением (ТЗ 2)</div>
+    <div>✓ Русскоязычные резюме зарубежных материалов с отметкой автогенерации (ТЗ 2)</div>
+    <div>✓ Инсайт = документ-отчёт с объяснением уверенности (ТЗ 2, 7.2)</div>
+    <div>✓ Счётчики кандидатов / источников / сигналов &gt;75% со списком (плюс ТЗ)</div>
+    <div>✓ Только разрешённые облачные API, раскрытие выбора + логирование (ТЗ 3.1)</div>
+    <div>✓ PostgreSQL, Python, FastAPI, разделение слоёв, Docker-поставка (ТЗ 3.2, 5)</div>
+    <div>✓ Отказоустойчивость парсеров: ретраи, фолбэки, два поисковых провайдера (ТЗ 8.2)</div>
+    <div>✓ Human-in-the-loop: обратная связь эксперта → датасет дообучения (ТЗ 2)</div>
+  </div>
+</section>
+
+<section id="art">
+  <h2><span class="n">12.</span> Артефакты и контакты</h2>
+  <div class="cols">
+    <div class="card"><h4>Код и документация</h4><p>Открытый репозиторий (GitHub/GitLab): README с командами развёртывания (Docker и без Docker),
+      requirements.txt, схема архитектуры PlantUML, schema.sql, методология отбора признаков.</p></div>
+    <div class="card"><h4>Проверяемые артефакты</h4><p><code>models/metrics.json</code> — метрики этапа 1;<br>
+      <code>/api/queries/{id}/report</code> — протокол прогона;<br>
+      <code>/api/llm-calls</code> — лог моделей;<br>
+      <code>/api/queries/{id}/export.xlsx</code> — выдача в формате образца.</p></div>
+    <div class="card"><h4>Стенд для жюри</h4><p>Демо: <b>factrank.ru/signals</b><br>Методология: эта страница<br>
+      Пульт конфигурации: <b>factrank.ru/signals/admin.html</b> (по админ-токену)<br>Команда: роли и контакты.</p></div>
+  </div>
+</section>
+
+<footer>Хакатон-кейс «Газпромбанк.Тех» — 2026 · Платформа ИИ-аналитики · «Слабые сигналы»:
+находим тренд до того, как о нём заговорят все</footer>
+</body>
+</html>

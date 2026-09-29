@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<link rel="apple-touch-icon" href="assets/logo.svg">
+<meta name="theme-color" content="#012F42">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Пульт управления · Слабые сигналы</title>
+<style>
+:root{--blue:#476BF0;--dark:#012F42;--cyan:#00D2FB;--bg:#F4F6FB;--muted:#6B7A90;--green:#12996B;--yellow:#E8A33D;--red:#D64545;--border:#E3E8F2}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:#1A2233;font-size:14px;line-height:1.5}
+header{background:var(--dark);color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:40}
+header b{font-size:16px}
+header nav a{color:#CBD8E4;margin-left:16px;text-decoration:none;font-size:13px}
+.wrap{max-width:1060px;margin:22px auto 60px;padding:0 18px}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 3px 14px rgba(1,47,66,.05)}
+h3{font-size:14px;color:var(--dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;gap:8px;align-items:center}
+.row{display:flex;gap:12px;align-items:center;margin:9px 0;flex-wrap:wrap}
+.row label{width:300px;color:#33415C}
+.m{color:var(--muted);font-size:12px}
+select,input[type=number],input[type=password]{padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff}
+input[type=password]{flex:1;min-width:200px}
+.rg{display:flex;align-items:center;gap:8px;flex:1}
+.rg input{flex:1}
+.rg b{width:44px;text-align:right;color:var(--dark)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 9px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:600;cursor:pointer;font-size:13px}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+.btn.small{padding:5px 12px;font-size:12px}
+.ok{color:var(--green);font-weight:700}.err{color:var(--red);font-weight:700}
+.warn{background:#FDF3E2;border:1px solid #F0D9A8;color:#8A5A10;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px}
+#toast{position:fixed;bottom:18px;right:18px;background:var(--dark);color:#fff;border-radius:10px;padding:12px 18px;display:none;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <b>🛠 Пульт управления анализом · Слабые сигналы</b>
+  <nav>
+    <a href="#" onclick="changeToken();return false;">сменить токен</a>
+    <a href="./">← к поиску</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="warn">Изменения применяются <b>без перезапуска</b> сервиса и записываются в аудит-лог.
+    Список моделей в селекторах ограничен <b>разрешённым перечнем ТЗ 3.1</b> — выбрать постороннюю модель через интерфейс невозможно.</div>
+
+  <div class="bar">
+    <button class="btn" onclick="save()">💾 Сохранить и применить</button>
+    <button class="btn ghost" onclick="load()">↺ Перечитать конфиг</button>
+    <button class="btn ghost" onclick="testAll()">⚡ Проверить все провайдеры</button>
+    <span id="dirty" class="m"></span>
+  </div>
+
+  <div class="card"><h3>🔎 Поиск и источники</h3>
+    <div id="sec-search"></div>
+    <div class="m" style="margin-top:10px">
+      <b>Доступные провайдеры:</b> DuckDuckGo (всегда работает, бесплатно), 
+      Tavily (1000 кредитов/мес), Brave (2000/мес), Yandex XML (платный, высокое качество RU).
+    </div>
+  </div>
+  <div class="card"><h3>🧠 Стадии анализа: модель и доступ на каждую стадию</h3>
+    <table id="tbl-stages"></table></div>
+  <div class="card"><h3>🧩 Компоненты пайплайна (опциональные)</h3><div id="sec-comp"></div></div>
+  <div class="card"><h3>⚖️ Скоринг: веса и пороги</h3><div id="sec-scoring"></div></div>
+  <div class="card"><h3>🔑 Ключи API и проверка боеготовности</h3><div id="sec-secrets"></div></div>
+  <div class="card"><h3>🕘 Аудит изменений конфигурации</h3><div id="sec-audit"></div></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const BASE = location.pathname.startsWith('/signals') ? '/signals' : '';
+let TOKEN = localStorage.getItem('ws_admin_token') || '';
+if (!TOKEN) { TOKEN = prompt('Админ-токен:') || ''; localStorage.setItem('ws_admin_token', TOKEN); }
+const H = () => ({'Content-Type':'application/json','X-Admin-Token':TOKEN});
+let CFG = null, ALLOWED = {}, DIRTY = false;
+
+const STAGE_RU = {query_expansion:'Расширение запроса', candidate_extract:'Извлечение кандидатов',
+  deep_analysis:'Глубокий анализ и вердикт', judge_analysis:'Второй аудитор (судья)', report_generation:'Генерация отчёта'};
+const COMP_RU = {reranker:'Реранкер источников «запрос ↔ текст» (меньше мусора в кандидатах)',
+  classifier:'Обученный классификатор этапа 1 (интерпретируемость по ТЗ)',
+  patents:'Патентный предиктор: патенты по годам (опционально)',
+  pgvector:'pgvector: векторы источников в PostgreSQL'};
+const SECRET_RU = {tavily_api_key:'Tavily — основной поиск', brave_api_key:'Brave — поиск / фолбэк',
+  patentsview_api_key:'PatentsView — патентная кривая', qwen_api_key:'Qwen — извлечение и анализ',
+  openai_api_key:'OpenAI gpt-5.6-luna — судья', yc_oauth_token:'Yandex Cloud — Lite/Pro тексты'};
+const SECRET_TARGET = {tavily_api_key:'tavily', brave_api_key:'brave', patentsview_api_key:'patents',
+  qwen_api_key:'qwen', openai_api_key:'openai', yc_oauth_token:'yandex'};
+
+const chk=(p,v)=>`<input type="checkbox" ${v?'checked':''} onchange="set('${p}',this.checked)">`;
+const rng=(p,v,min,max,step,fix=2)=>`<div class="rg"><input type="range" min="${min}" max="${max}" step="${step}" value="${v}"
+  oninput="set('${p}',parseFloat(this.value));this.nextElementSibling.textContent=parseFloat(this.value).toFixed(${fix})"><b>${(+v).toFixed(fix)}</b></div>`;
+const num=(p,v,min,max)=>`<input type="number" min="${min}" max="${max}" value="${v}" style="width:74px" onchange="set('${p}',parseInt(this.value,10)||0)">`;
+const opt=(v,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${v}</option>`;
+
+function set(path,val){ const p=path.split('.'); let o=CFG;
+  for(let i=0;i<p.length-1;i++) o=o[p[i]]; o[p[p.length-1]]=val; dirty(); }
+function dirty(){ DIRTY=true; document.getElementById('dirty').textContent='● есть несохранённые изменения'; }
+function toast(msg,color){ const t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block'; t.style.background=color||'var(--dark)';
+  setTimeout(()=>t.style.display='none',3500); }
+function changeToken(){ TOKEN=prompt('Новый админ-токен:',TOKEN)||TOKEN; localStorage.setItem('ws_admin_token',TOKEN); load(); }
+
+async function load(){
+  const r = await fetch(BASE+'/api/admin/settings',{headers:H()});
+  if (r.status===403){ TOKEN=prompt('Токен отклонён. Введите админ-токен:','')||''; localStorage.setItem('ws_admin_token',TOKEN); return load(); }
+  if (!r.ok){ toast('Ошибка загрузки: HTTP '+r.status,'var(--red)'); return; }
+  const d = await r.json(); CFG=d.config; ALLOWED=d.allowed_models; DIRTY=false;
+  document.getElementById('dirty').textContent='';
+  render(); loadAudit();
+}
+
+function render(){
+  const s=CFG.search;
+  document.getElementById('sec-search').innerHTML=`
+    <div class="row"><label>Основной поисковый провайдер</label>
+      <select onchange="set('search.provider',this.value)">
+      ${opt('duckduckgo',s.provider)}${opt('tavily',s.provider)}${opt('brave',s.provider)}${opt('yandex_xml',s.provider)}
+    </select>
+      <span class="m">второй провайдер с ключом работает как автоматический фолбэк</span></div>
+    <div class="row"><label>Результатов поиска на подзапрос</label>${rng('search.results_per_subquery',s.results_per_subquery,3,10,1,0)}</div>
+    <div class="row"><label>Максимум источников с полным текстом</label>${rng('search.max_fetch_sources',s.max_fetch_sources,4,24,2,0)}</div>
+    <div class="row"><label>Патентный предиктор (патенты по годам)</label>${chk('search.patents_enabled',s.patents_enabled)}</div>`;
+
+  document.getElementById('tbl-stages').innerHTML =
+    `<tr><th>Стадия</th><th>Вкл</th><th>Провайдер</th><th>Модель (перечень ТЗ 3.1)</th><th>Temperature</th></tr>` +
+    Object.entries(CFG.stages).map(([t,st])=>{
+      const models = ALLOWED[st.provider]||[];
+      const extra = models.includes(st.model) ? '' : opt(st.model,st.model);
+      return `<tr><td><b>${STAGE_RU[t]||t}</b><div class="m">${t}</div></td>
+        <td>${chk('stages.'+t+'.enabled',st.enabled)}</td>
+        <td><select onchange="set('stages.${t}.provider',this.value);render()">${Object.keys(ALLOWED).map(p=>opt(p,st.provider)).join('')}</select></td>
+        <td><select onchange="set('stages.${t}.model',this.value)">${models.map(m=>opt(m,st.model)).join('')}${extra}</select></td>
+        <td style="min-width:180px">${rng('stages.'+t+'.temperature',st.temperature,0,1,0.1)}</td></tr>`;
+    }).join('');
+
+  document.getElementById('sec-comp').innerHTML = Object.entries(CFG.components).map(([k,c])=>
+    `<div class="row"><label>${COMP_RU[k]||k}</label>${chk('components.'+k+'.enabled',c.enabled)}
+     <span class="m">${c.enabled?'включено':'выключено — пайплайн деградирует gracefully'}</span></div>`).join('');
+
+  const w=CFG.scoring.weights, sum=Object.values(w).reduce((a,b)=>a+b,0);
+  document.getElementById('sec-scoring').innerHTML =
+    Object.entries(w).map(([k,v])=>`<div class="row"><label>вес оценки: ${k}</label>${rng('scoring.weights.'+k,v,0,1,0.05)}</div>`).join('')+
+    `<div class="row ${Math.abs(sum-1)<0.01?'ok':'err'}">сумма весов = ${sum.toFixed(2)} — при сохранении нормируется до 1.0 автоматически</div>
+     <div class="row"><label>Сомнительных кандидатов в выдаче (min–max)</label>
+       ${num('scoring.borderline_min',CFG.scoring.borderline_min,0,10)} — ${num('scoring.borderline_max',CFG.scoring.borderline_max,0,10)}</div>`;
+
+  document.getElementById('sec-secrets').innerHTML = Object.entries(CFG.secrets).map(([k,v])=>
+    `<div class="row"><label>${SECRET_RU[k]||k}<div class="m">${v.set?'задан, окончание '+v.preview:'НЕ задан'}</div></label>
+     <span class="${v.set?'ok':'err'}">${v.set?'✓':'✗'}</span>
+     <input type="password" id="sec_${k}" placeholder="вставьте новый ключ или оставьте пустым">
+     <button class="btn ghost small" onclick="testKey('${k}')">⚡ тест</button>
+     <span id="res_${k}" class="m"></span></div>`).join('');
+}
+
+async function testKey(k){
+  const el=document.getElementById('res_'+k); el.textContent='проверка…';
+  const val=document.getElementById('sec_'+k).value.trim();
+  const r=await fetch(BASE+'/api/admin/test',{method:'POST',headers:H(),
+    body:JSON.stringify({target:SECRET_TARGET[k], api_key:val||undefined})});
+  const d=await r.json();
+  el.innerHTML = d.ok?`<span class="ok">ok, ${d.latency_ms} мс</span>`:`<span class="err">${d.error||'ошибка'}</span>`;
+}
+async function testAll(){ for(const k of Object.keys(SECRET_TARGET)) await testKey(k); }
+
+async function save(){
+  const patch = JSON.parse(JSON.stringify(CFG));
+  patch.secrets = {};
+  document.querySelectorAll('[id^=sec_]').forEach(i=>{ const v=i.value.trim(); if(v) patch.secrets[i.id.slice(4)]=v; });
+  const w=patch.scoring.weights, s=Object.values(w).reduce((a,b)=>a+b,0)||1;
+  Object.keys(w).forEach(k=>w[k]=Math.round((w[k]/s)*100)/100);
+  const r=await fetch(BASE+'/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify(patch)});
+  if(!r.ok){ toast('Ошибка сохранения: '+await r.text(),'var(--red)'); return; }
+  toast('Сохранено и применено горячо. Запись в аудите создана.','var(--green)');
+  load();
+}
+
+async function loadAudit(){
+  const r=await fetch(BASE+'/api/admin/audit?limit=15',{headers:H()});
+  if(!r.ok) return;
+  const rows=await r.json();
+  document.getElementById('sec-audit').innerHTML =
+    `<table><tr><th>Когда</th><th>Кто</th><th>Что изменено</th></tr>`+
+    (rows.length?rows.map(a=>`<tr><td>${String(a.at).slice(0,19)}</td><td>${a.by||'admin'}</td>
+      <td class="m">${JSON.stringify(a.patch).slice(0,180)}</td></tr>`).join('')
+      :`<tr><td colspan="3" class="m">изменений пока нет</td></tr>`)+`</table>`;
+}
+load();
+</script>
+</body>
+</html>

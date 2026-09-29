@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: weak_signals
+      POSTGRES_PASSWORD: sql123
+      POSTGRES_DB: weak_signals
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weak_signals"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://weak_signals:PASSWORD@db:5432/weak_signals
+      STATIC_DIR: /app/../frontend
+      MODEL_DIR: /app/models
+      MODELS_CONFIG_PATH: /app/models_config.yaml
+      EXEMPLARS_PATH: /app/data/100_слабых_технологических_сигналов_сентябрь_2026.xlsx
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me-in-production}
+      # API ключи (заполните в .env)
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GIGACHAT_BASE_URL: ${GIGACHAT_BASE_URL:-}
+      GIGACHAT_API_KEY: ${GIGACHAT_API_KEY:-}
+    volumes:
+      - ./frontend:/app/../frontend
+      - model_artifacts:/app/models
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python -m app.classifier.train --data data/train_full.csv --synthesize-negatives || true
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+volumes:
+  postgres_data:
+  model_artifacts:
+YAML

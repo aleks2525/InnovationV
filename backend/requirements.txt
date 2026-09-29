@@ -1,0 +1,21 @@
+fastapi==0.115.6
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+sqlalchemy==2.0.35
+asyncpg==0.29.0
+httpx==0.27.2
+trafilatura==1.12.2
+lxml==5.3.0
+tenacity==8.5.0
+scikit-learn==1.5.2
+pandas==2.2.3
+numpy==1.26.4
+joblib==1.4.2
+openpyxl==3.1.5
+pyyaml==6.0.2
+python-dotenv==1.0.1
+ddgs==8.0.1
+tavily-python==0.5.0
+# реранкер и эмбеддинги — через API.
+# Нативных SDK НЕТ: YandexGPT/GigaChat/Qwen/OpenAI — OpenAI-совместимые эндпоинты (httpx).
